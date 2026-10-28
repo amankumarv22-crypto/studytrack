@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>StudyTrack | Academic Planner</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -36,37 +38,125 @@
     {% endwith %}
 
     <section class="stats">
-      <article class="stat-card"><span>Total assignments</span><strong>{{ total }}</strong></article>
-      <article class="stat-card"><span>Pending</span><strong>{{ pending }}</strong></article>
-      <article class="stat-card"><span>Completed</span><strong>{{ completed }}</strong></article>
-      <article class="stat-card"><span>Average assessment %</span><strong>{{ (average|string + '%') if average is not none else '—' }}</strong></article>
+      <article class="stat-card">
+        <span>Total assignments</span><strong>{{ total }}</strong>
+      </article>
+      <article class="stat-card">
+        <span>Pending</span><strong>{{ pending }}</strong>
+      </article>
+      <article class="stat-card">
+        <span>Completed</span><strong>{{ completed }}</strong>
+      </article>
+      <article class="stat-card">
+        <span>Average assessment %</span>
+        <strong>{{ (average|string + '%') if average is not none else '—' }}</strong>
+      </article>
     </section>
 
+    <!-- Deadline tracker -->
+    <section class="panel deadline-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">DEADLINE REMINDERS</p>
+          <h2>Upcoming work</h2>
+        </div>
+        <span class="icon">◷</span>
+      </div>
+
+      <div class="deadline-groups">
+        <div class="deadline-group">
+          <h3 class="overdue-heading">Overdue · {{ overdue|length }}</h3>
+          {% for item in overdue %}
+            <div class="deadline-item overdue">
+              <div>
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.subject }}</p>
+              </div>
+              <span>{{ item.deadline.strftime("%d %b") }}</span>
+            </div>
+          {% else %}
+            <p class="empty">No overdue assignments.</p>
+          {% endfor %}
+        </div>
+
+        <div class="deadline-group">
+          <h3 class="today-heading">Due today · {{ due_today|length }}</h3>
+          {% for item in due_today %}
+            <div class="deadline-item due-today">
+              <div>
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.subject }}</p>
+              </div>
+              <span>Today</span>
+            </div>
+          {% else %}
+            <p class="empty">Nothing due today.</p>
+          {% endfor %}
+        </div>
+
+        <div class="deadline-group">
+          <h3 class="upcoming-heading">Coming up · {{ upcoming|length }}</h3>
+          {% for item in upcoming %}
+            <div class="deadline-item upcoming">
+              <div>
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.subject }}</p>
+              </div>
+              <span>{{ item.deadline.strftime("%d %b") }}</span>
+            </div>
+          {% else %}
+            <p class="empty">No upcoming deadlines.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Add new records -->
     <section class="grid">
       <article class="panel">
         <div class="panel-heading">
-          <div><p class="eyebrow">TASKS</p><h2>Add an assignment</h2></div>
+          <div>
+            <p class="eyebrow">TASKS</p>
+            <h2>Add an assignment</h2>
+          </div>
           <span class="icon">＋</span>
         </div>
         <form method="post" action="{{ url_for('add_assignment') }}" class="form">
-          <label>Assignment title<input name="title" maxlength="120" required placeholder="e.g. Android lab report"></label>
-          <label>Subject<input name="subject" maxlength="80" required placeholder="e.g. Android Development"></label>
-          <label>Deadline<input type="date" name="deadline"></label>
+          <label>Assignment title
+            <input name="title" maxlength="120" required placeholder="e.g. Android lab report">
+          </label>
+          <label>Subject
+            <input name="subject" maxlength="80" required placeholder="e.g. Android Development">
+          </label>
+          <label>Deadline
+            <input type="date" name="deadline">
+          </label>
           <button type="submit">Add assignment</button>
         </form>
       </article>
 
       <article class="panel">
         <div class="panel-heading">
-          <div><p class="eyebrow">RESULTS</p><h2>Record assessment marks</h2></div>
+          <div>
+            <p class="eyebrow">RESULTS</p>
+            <h2>Record assessment marks</h2>
+          </div>
           <span class="icon">％</span>
         </div>
         <form method="post" action="{{ url_for('add_assessment') }}" class="form">
-          <label>Subject<input name="subject" maxlength="80" required placeholder="e.g. Machine Learning"></label>
-          <label>Assessment name<input name="assessment_name" maxlength="120" required placeholder="e.g. Mid-term exam"></label>
+          <label>Subject
+            <input name="subject" maxlength="80" required placeholder="e.g. Machine Learning">
+          </label>
+          <label>Assessment name
+            <input name="assessment_name" maxlength="120" required placeholder="e.g. Mid-term exam">
+          </label>
           <div class="two-fields">
-            <label>Marks obtained<input type="number" name="marks_obtained" min="0" step="0.01" required placeholder="40"></label>
-            <label>Maximum marks<input type="number" name="maximum_marks" min="0.01" step="0.01" required placeholder="50"></label>
+            <label>Marks obtained
+              <input type="number" name="marks_obtained" min="0" step="0.01" required placeholder="40">
+            </label>
+            <label>Maximum marks
+              <input type="number" name="maximum_marks" min="0.01" step="0.01" required placeholder="50">
+            </label>
           </div>
           <button type="submit">Save marks &amp; calculate</button>
           <p class="hint">Percentage = (marks obtained ÷ maximum marks) × 100</p>
@@ -74,56 +164,145 @@
       </article>
     </section>
 
+    <!-- Performance analytics -->
+    <section class="panel analytics-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">ACADEMIC INSIGHTS</p>
+          <h2>Performance analytics</h2>
+        </div>
+      </div>
+
+      <div class="analytics-grid">
+        <article class="chart-card">
+          <h3>Average percentage by subject</h3>
+          {% if subject_averages %}
+            <div class="chart-wrap">
+              <canvas id="subjectChart"></canvas>
+            </div>
+          {% else %}
+            <p class="empty">Add assessment marks to see subject averages.</p>
+          {% endif %}
+        </article>
+
+        <article class="chart-card">
+          <h3>Assessment comparison</h3>
+          {% if assessments %}
+            <div class="chart-wrap">
+              <canvas id="assessmentChart"></canvas>
+            </div>
+          {% else %}
+            <p class="empty">Add assessments to compare your results.</p>
+          {% endif %}
+        </article>
+      </div>
+
+      {% if subject_averages %}
+        <h3 class="subheading">Subject summary</h3>
+        <div class="subject-summary">
+          {% for item in subject_averages %}
+            <div class="subject-row">
+              <div class="subject-row-info">
+                <strong>{{ item.subject }}</strong>
+                <span>{{ item.count }} assessment(s)</span>
+              </div>
+              <div class="subject-score">
+                <strong>{{ item.average }}%</strong>
+                <div class="progress">
+                  <span style="width: {{ [item.average, 100]|min }}%"></span>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- Assignment list -->
     <section class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">YOUR PLAN</p><h2>Assignments</h2></div></div>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">YOUR PLAN</p>
+          <h2>Assignments</h2>
+        </div>
+      </div>
+
       {% if assignments %}
-      <div class="table-wrap"><table>
-        <thead><tr><th>Assignment</th><th>Subject</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-        {% for item in assignments %}
-          <tr>
-            <td>{{ item.title }}</td>
-            <td>{{ item.subject }}</td>
-            <td>{{ item.deadline.strftime("%d %b %Y") if item.deadline else "Not set" }}</td>
-            <td><span class="status {{ item.status|lower }}">{{ item.status }}</span></td>
-            <td class="actions">
-              <form method="post" action="{{ url_for('update_status', assignment_id=item.id) }}">
-                <button class="small secondary" type="submit">{{ "Mark pending" if item.status == "Completed" else "Complete" }}</button>
-              </form>
-              <form method="post" action="{{ url_for('delete_assignment', assignment_id=item.id) }}" onsubmit="return confirm('Delete this assignment?')">
-                <button class="small danger" type="submit">Delete</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Assignment</th><th>Subject</th><th>Deadline</th>
+                <th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in assignments %}
+                <tr>
+                  <td>{{ item.title }}</td>
+                  <td>{{ item.subject }}</td>
+                  <td>{{ item.deadline.strftime("%d %b %Y") if item.deadline else "Not set" }}</td>
+                  <td><span class="status {{ item.status|lower }}">{{ item.status }}</span></td>
+                  <td class="actions">
+                    <form method="post" action="{{ url_for('update_status', assignment_id=item.id) }}">
+                      <button class="small secondary" type="submit">
+                        {{ "Mark pending" if item.status == "Completed" else "Complete" }}
+                      </button>
+                    </form>
+                    <form method="post" action="{{ url_for('delete_assignment', assignment_id=item.id) }}" onsubmit="return confirm('Delete this assignment?')">
+                      <button class="small danger" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
         <p class="empty">No assignments yet. Add your first assignment above.</p>
       {% endif %}
     </section>
 
+    <!-- Assessment list -->
     <section class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">PERFORMANCE</p><h2>Assessment results</h2></div></div>
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">PERFORMANCE</p>
+          <h2>Assessment results</h2>
+        </div>
+      </div>
+
       {% if assessments %}
-      <div class="table-wrap"><table>
-        <thead><tr><th>Subject</th><th>Assessment</th><th>Marks</th><th>Percentage</th><th>Action</th></tr></thead>
-        <tbody>
-        {% for item in assessments %}
-          <tr>
-            <td>{{ item.subject }}</td>
-            <td>{{ item.assessment_name }}</td>
-            <td>{{ item.marks_obtained|round(2) }} / {{ item.maximum_marks|round(2) }}</td>
-            <td><strong>{{ item.percentage }}%</strong><div class="progress"><span style="width: {{ [item.percentage, 100]|min }}%"></span></div></td>
-            <td>
-              <form method="post" action="{{ url_for('delete_assessment', assessment_id=item.id) }}" onsubmit="return confirm('Delete this result?')">
-                <button class="small danger" type="submit">Delete</button>
-              </form>
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Subject</th><th>Assessment</th><th>Marks</th>
+                <th>Percentage</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in assessments %}
+                <tr>
+                  <td>{{ item.subject }}</td>
+                  <td>{{ item.assessment_name }}</td>
+                  <td>{{ item.marks_obtained|round(2) }} / {{ item.maximum_marks|round(2) }}</td>
+                  <td>
+                    <strong>{{ item.percentage }}%</strong>
+                    <div class="progress">
+                      <span style="width: {{ [item.percentage, 100]|min }}%"></span>
+                    </div>
+                  </td>
+                  <td>
+                    <form method="post" action="{{ url_for('delete_assessment', assessment_id=item.id) }}" onsubmit="return confirm('Delete this result?')">
+                      <button class="small danger" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
         <p class="empty">No marks recorded yet. Enter an assessment above to see results.</p>
       {% endif %}
@@ -131,5 +310,69 @@
 
     <footer>StudyTrack · Academic planning made simpler</footer>
   </main>
+
+  <script>
+    const subjectLabels = {{ subject_averages | map(attribute='subject') | list | tojson }};
+    const subjectValues = {{ subject_averages | map(attribute='average') | list | tojson }};
+
+    const assessmentLabels = [
+      {% for item in assessments %}
+        {{ (item.subject ~ " - " ~ item.assessment_name) | tojson }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+    const assessmentValues = [
+      {% for item in assessments %}
+        {{ item.percentage }}{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    const subjectCanvas = document.getElementById("subjectChart");
+    if (subjectCanvas && subjectLabels.length) {
+      new Chart(subjectCanvas, {
+        type: "bar",
+        data: {
+          labels: subjectLabels,
+          datasets: [{
+            label: "Average (%)",
+            data: subjectValues,
+            backgroundColor: "#6478e8",
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, title: { display: true, text: "Percentage" } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    const assessmentCanvas = document.getElementById("assessmentChart");
+    if (assessmentCanvas && assessmentLabels.length) {
+      new Chart(assessmentCanvas, {
+        type: "bar",
+        data: {
+          labels: assessmentLabels,
+          datasets: [{
+            label: "Score (%)",
+            data: assessmentValues,
+            backgroundColor: "#2ca58d",
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, title: { display: true, text: "Percentage" } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+  </script>
 </body>
 </html>
