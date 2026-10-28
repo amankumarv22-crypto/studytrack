@@ -587,3 +587,143 @@ footer {
     transition-duration: 0.01ms !important;
   }
 }
+/* Deadline tracker */
+.deadline-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.deadline-group {
+  min-width: 0;
+}
+
+.deadline-group h3,
+.chart-card h3,
+.subheading {
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+
+.overdue-heading { color: #d14343; }
+.today-heading { color: #c27a13; }
+.upcoming-heading { color: #3972c6; }
+
+.deadline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 9px;
+  border: 1px solid #e7eaf0;
+  border-left: 4px solid #8b96a8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.deadline-item.overdue { border-left-color: #d14343; }
+.deadline-item.due-today { border-left-color: #e5a12a; }
+.deadline-item.upcoming { border-left-color: #3972c6; }
+
+.deadline-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.deadline-item p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #687386;
+}
+
+.deadline-item > span {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Performance analytics */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.chart-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e7eaf0;
+  border-radius: 12px;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 270px;
+  width: 100%;
+}
+
+.subheading {
+  margin-top: 26px;
+}
+
+.subject-summary {
+  display: grid;
+  gap: 14px;
+}
+
+.subject-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e7eaf0;
+}
+
+.subject-row-info {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.subject-row-info strong {
+  overflow-wrap: anywhere;
+}
+
+.subject-row-info span {
+  color: #687386;
+  font-size: 13px;
+}
+
+.subject-score {
+  width: 150px;
+  max-width: 45%;
+  flex-shrink: 0;
+}
+
+.subject-score > strong {
+  display: block;
+  margin-bottom: 6px;
+  text-align: right;
+}
+
+/* Mobile layout */
+@media (max-width: 760px) {
+  .deadline-groups,
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .deadline-group {
+    margin-bottom: 12px;
+  }
+
+  .chart-wrap {
+    height: 240px;
+  }
+
+  .subject-row {
+    gap: 12px;
+  }
+}
