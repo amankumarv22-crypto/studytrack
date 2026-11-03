@@ -11,9 +11,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-before-deploying")
-db_url = os.environ.get("DATABASE_URL", "sqlite:///studytrack.db")
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+db_url = os.environ.get("DATABASE_URL", "sqlite:///studytrack.db").strip()
+# Always use the psycopg2 driver (the one installed in requirements.txt),
+# whichever form of PostgreSQL address was pasted into DATABASE_URL.
+for _prefix in ("postgres://", "postgresql://", "postgresql+psycopg://"):
+    if db_url.startswith(_prefix):
+        db_url = "postgresql+psycopg2://" + db_url[len(_prefix):]
+        break
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
