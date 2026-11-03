@@ -1,34 +1,49 @@
-
 import os
 from collections import defaultdict
-from datetime import date
-from flask import Flask, render_template, request, redirect, url_for, flash
+from datetime import date, timedelta
+from flask import (Flask, render_template, request, redirect, url_for,
+                   flash, send_from_directory)
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import (LoginManager, UserMixin, login_user, logout_user,
+                         login_required, current_user)
+from sqlalchemy import inspect, text
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "change-this-before-deploying"
-)
-
-database_url = os.environ.get("DATABASE_URL", "sqlite:///studytrack.db")
-if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-this-before-deploying")
+db_url = os.environ.get("DATABASE_URL", "sqlite:///studytrack.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = "st_user"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
 
 
 class Assignment(db.Model):
+    __tablename__ = "st_assignment"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("st_user.id"), nullable=False)
     title = db.Column(db.String(120), nullable=False)
     subject = db.Column(db.String(80), nullable=False)
     deadline = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="Pending")
+    priority = db.Column(db.String(10), nullable=False, default="Medium")
 
 
 class Assessment(db.Model):
+    __tablename__ = "st_assessment"
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("st_user.id"), nullable=False)
     subject = db.Column(db.String(80), nullable=False)
     assessment_name = db.Column(db.String(120), nullable=False)
     marks_obtained = db.Column(db.Float, nullable=False)
@@ -38,175 +53,44 @@ class Assessment(db.Model):
     def percentage(self):
         if self.maximum_marks <= 0:
             return 0
-        return round(
-            self.marks_obtained / self.maximum_marks * 100, 2
-        )
+        return round(self.marks_obtained / self.maximum_marks * 100, 2)
+
+
+class Activity(db.Model):
+    __tablename__ = "st_activity"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("st_user.id"), nullable=False)
+    day = db.Column(db.Date, nullable=False)
+
+
+class Goal(db.Model):
+    __tablename__ = "st_goal"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("st_user.id"), nullable=False)
+    subject = db.Column(db.String(80), nullable=False)
+    target = db.Column(db.Float, nullable=False)
 
 
 with app.app_context():
     db.create_all()
-
-
-@app.route("/")
-def index():
-    assignments = Assignment.query.order_by(
-        Assignment.deadline.asc(), Assignment.id.desc()
-    ).all()
-    assessments = Assessment.query.order_by(
-        Assessment.id.desc()
-    ).all()
-
-    today = date.today()
-    total = len(assignments)
-    completed = sum(
-        1 for item in assignments if item.status == "Completed"
-    )
-    pending = total - completed
-    average = (
-        round(sum(item.percentage for item in assessments)
-              / len(assessments), 2)
-        if assessments else None
-    )
-
-    overdue = [
-        item for item in assignments
-        if item.status == "Pending"
-        and item.deadline is not None
-        and item.deadline < today
-    ]
-    due_today = [
-        item for item in assignments
-        if item.status == "Pending" and item.deadline == today
-    ]
-    upcoming = [
-        item for item in assignments
-        if item.status == "Pending"
-        and item.deadline is not None
-        and item.deadline > today
-    ]
-
-    subject_data = defaultdict(list)
-    for item in assessments:
-        subject_data[item.subject].append(item.percentage)
-
-    subject_averages = [
-        {
-            "subject": subject,
-            "average": round(sum(scores) / len(scores), 2),
-            "count": len(scores),
-        }
-        for subject, scores in sorted(subject_data.items())
-    ]
-
-    return render_template(
-        "index.html",
-        assignments=assignments,
-        assessments=assessments,
-        total=total,
-        completed=completed,
-        pending=pending,
-        average=average,
-        today=today,
-        overdue=overdue,
-        due_today=due_today,
-        upcoming=upcoming,
-        subject_averages=subject_averages,
-    )
-
-
-@app.post("/assignments/add")
-def add_assignment():
-    title = request.form.get("title", "").strip()
-    subject = request.form.get("subject", "").strip()
-    deadline_raw = request.form.get("deadline", "").strip()
-
-    if not title or not subject:
-        flash("Please enter both an assignment title and subject.", "error")
-        return redirect(url_for("index"))
-
-    try:
-        deadline = date.fromisoformat(deadline_raw) if deadline_raw else None
-    except ValueError:
-        flash("Please enter a valid deadline.", "error")
-        return redirect(url_for("index"))
-
-    db.session.add(
-        Assignment(title=title, subject=subject, deadline=deadline)
-    )
-    db.session.commit()
-    flash("Assignment added.", "success")
-    return redirect(url_for("index"))
-
-
-@app.post("/assignments/<int:assignment_id>/status")
-def update_status(assignment_id):
-    assignment = db.get_or_404(Assignment, assignment_id)
-    assignment.status = (
-        "Completed" if assignment.status == "Pending" else "Pending"
-    )
-    db.session.commit()
-    flash("Assignment status updated.", "success")
-    return redirect(url_for("index"))
-
-
-@app.post("/assignments/<int:assignment_id>/delete")
-def delete_assignment(assignment_id):
-    assignment = db.get_or_404(Assignment, assignment_id)
-    db.session.delete(assignment)
-    db.session.commit()
-    flash("Assignment deleted.", "success")
-    return redirect(url_for("index"))
-
-
-@app.post("/assessments/add")
-def add_assessment():
-    subject = request.form.get("subject", "").strip()
-    name = request.form.get("assessment_name", "").strip()
-
-    try:
-        obtained = float(request.form.get("marks_obtained", ""))
-        maximum = float(request.form.get("maximum_marks", ""))
-    except (ValueError, TypeError):
-        flash("Enter valid numbers for marks.", "error")
-        return redirect(url_for("index"))
-
-    if not subject or not name:
-        flash("Please enter a subject and assessment name.", "error")
-    elif (
-        not all(map(lambda x: x == x and abs(x) != float("inf"),
-                    [obtained, maximum]))
-        or maximum <= 0
-        or obtained < 0
-        or obtained > maximum
-    ):
-        flash(
-            "Marks must be valid, and obtained marks cannot exceed "
-            "a positive maximum.",
-            "error",
-        )
-    else:
-        db.session.add(
-            Assessment(
-                subject=subject,
-                assessment_name=name,
-                marks_obtained=obtained,
-                maximum_marks=maximum,
-            )
-        )
+    # Add the priority column to databases created before this version.
+    if "priority" not in [c["name"] for c in inspect(db.engine).get_columns("st_assignment")]:
+        db.session.execute(text("ALTER TABLE st_assignment ADD COLUMN priority VARCHAR(10) DEFAULT 'Medium'"))
         db.session.commit()
-        flash("Assessment saved and percentage calculated.", "success")
-
-    return redirect(url_for("index"))
 
 
-@app.post("/assessments/<int:assessment_id>/delete")
-def delete_assessment(assessment_id):
-    assessment = db.get_or_404(Assessment, assessment_id)
-    db.session.delete(assessment)
-    db.session.commit()
-    flash("Assessment deleted.", "success")
-    return redirect(url_for("index"))
+def log_activity():
+    today = date.today()
+    if not Activity.query.filter_by(user_id=current_user.id, day=today).first():
+        db.session.add(Activity(user_id=current_user.id, day=today))
+        db.session.commit()
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.template_filter("hue")
+def hue(text):
+    palette = [215, 150, 28, 330, 265, 180, 355, 48]
+    return palette[sum(ord(c) * (i + 1) for i, c in enumerate(str(text).lower())) % len(palette)]
+
+
+@login_manager.user_loader
+def load_user(uid):
