@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block content %}
+<main><div class="box"><h2>Edit assignment</h2><form method="post">
+<input name="title" value="{{ a.title }}" required><input name="subject" value="{{ a.subject }}" required>
+<input name="deadline" type="date" value="{{ a.deadline or '' }}">
+<select name="priority">{% for p in ['High','Medium','Low'] %}<option {{ 'selected' if a.priority==p }}>{{ p }}</option>{% endfor %}</select>
+<button class="btn">Save changes</button></form><p><a href="{{ url_for('index') }}">Cancel</a></p></div></main>{% endblock %}
