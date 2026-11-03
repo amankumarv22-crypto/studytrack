@@ -92,5 +92,7 @@ def hue(text):
     return palette[sum(ord(c) * (i + 1) for i, c in enumerate(str(text).lower())) % len(palette)]
 
 
+
 @login_manager.user_loader
 def load_user(uid):
+    return db.session.get(User, int(uid))(uid):
